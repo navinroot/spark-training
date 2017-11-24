@@ -1,0 +1,41 @@
+val tranFile=sc.textFile("/home/spark/sia/hadoop-in-action/first-edition/ch04/ch04_data_transactions.txt")
+val tranData=tranFile.map(_.split("#"))
+var transByCust=tranData.map(tran=> (tran(2).toInt,tran))
+transByCust.keys.distinct.count
+transByCust.countByKey.toSeq.sortBy(_._2).last
+transByCust.lookup(53)
+transByCust.lookup(53).foreach(trans=> println(trans.mkString(", ")))
+
+ transByCust = transByCust.mapValues(tran => {
+      if(tran(3).toInt==25 && tran(4).toDouble>1){
+      tran(5)=(tran(5).toDouble * 0.95).toString }
+      tran })
+
+ transByCust =transByCust.flatMapValues(tran => {
+      if(tran(3).toInt==81 && tran(4).toDouble > 4){
+      val cloned =tran.clone()
+      cloned(5)="0.00"; cloned(3)="70" ; cloned(4)="1";
+      List(tran,cloned)
+      }
+      else{
+      List(tran)
+      }
+      }
+      )
+
+	 val amounts=transByCust.mapValues(t => t(5).toDouble)
+	 
+val totals=amounts.foldByKey(0)(_+_).collect
+
+totals.toSeq.sortBy(_._2).last
+
+postDf.createOrReplaceTempView("post_temp")
+
+postDf.write.saveAsTable("posts")
+
+votesDf.write.saveAsTable("votes")
+
+postDf.createOrReplaceTempView("post_temp")
+
+spark.catalog.listFunctions.show
+

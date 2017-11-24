@@ -1,0 +1,182 @@
+
+---------- create Df from RDD
+val itPostsRows=sc.textFile("/home/spark/sia/hadoop-in-action/first-edition/ch05/italianPosts.csv")
+val itPostsSplit=itPostsRows.map(_.split("~"))
+val itPostsRdd = itPostsSplit.map(x => (x(0),x(1),x(2),x(3),x(4),x(5),x(6),x(7),x(8),x(9),x(10),x(11),x(12)))
+val itPostsDF=itPostsRdd.toDF("commentCount","lastActivityDate","OwnerUserId","body","score","creationDate","viewCount","title","tags","answerCount","acceptedAnswerId","postTypeId","id")
+itPostsDF.printSchema
+
+----------- create DF from case class
+case class Post(commentCount:Option[Int],lastActivityDate:Option[java.sql.Timestamp],OwnerUserId:Option[Long],body:String,score:Option[Int],creationDate:Option[java.sql.Timestamp],viewCount:Option[Int],title:String,tags:String,answerCount:Option[Int],acceptedAnswerId:Option[Long],postTypeId:Option[Long],id:Option[Long])
+
+import java.sql.Timestamp
+
+val itPostsRows=sc.textFile("/home/spark/sia/hadoop-in-action/first-edition/ch05/italianPosts.csv")
+
+object StringImplicits{
+      implicit class StringImprovements(val s:String){
+      import scala.util.control.Exception.catching
+      def toIntSafe = catching(classOf[NumberFormatException]) opt s.toInt
+      def toLongSafe = catching(classOf[NumberFormatException]) opt s.toLong
+      def toTimeStampSafe = catching(classOf[IllegalArgumentException]) opt Timestamp.valueOf(s)
+      }
+      }
+
+import StringImplicits._
+
+ def stringToPost(row:String):Post ={
+      val r=row.split("~")
+      Post(
+      r(0).toIntSafe,
+      r(1).toTimeStampSafe,
+      r(2).toLongSafe,
+      r(3),
+      r(4).toIntSafe,
+      r(5).toTimeStampSafe,
+      r(6).toIntSafe,
+      r(7),
+      r(8),
+      r(9).toIntSafe,
+      r(10).toLongSafe,
+      r(11).toLongSafe,
+      r(12).toLongSafe
+      )
+      }
+
+val itPostsDFCase = itPostsRows.map(x=> stringToPost(x)).toDF
+
+itPostsDFCase.printSchema
+
+itPostsDFCase.columns
+
+itPostsDFCase.dtypes
+
+val postDf = itPostsDFCase
+
+val getBody= postDf.select("id","body")
+
+val getBody= postDf.select('id,'body)
+
+val getBody= postDf.select(postDf.col("id"),postDf.col("body"))
+
+val getBody= postDf.select(Symbol("id"),Symbol("body"))
+
+val getBody= postDf.select($"id",$"body")
+
+val getId= getBody.drop('body)
+
+getBody.filter('body contains "Italiano").count
+
+val noAnswer=postDf.filter(('postTypeId === 1) and ('acceptedAnswerId isNull))
+
+val firstTenAns= postDf.filter('postTypeId === 1).limit(10)
+
+val firstTenAnsRenamed= firstTenAns.withColumnRenamed("OwnerUserId", "Owner")
+
+postDf.filter('postTypeId === 1).withColumn("ratio", 'viewCount/'score).where('ratio <35).show(1)
+
+import org.apache.spark.sql.functions._
+
+postDf.filter('postTypeId ===1).
+      withColumn("activePeriod", datediff('lastActivityDate,'creationDate)).
+      orderBy('activePeriod desc).head.getString(3).
+      replace("&lt;","<").replace("&gt;",">")
+
+postDf.select(avg('score),max('score),count('score)).show
+
+import org.apache.spark.sql.expressions.Window
+
+postDf.filter('postTypeId === 1).
+      select('ownerUserId, 'acceptedAnswerId, 'score , max('score).
+      over(Window.partitionBy('ownerUserId)) as "maxPerUser").
+      withColumn("toMax", 'maxPerUser -'score).show(10)
+	  
+postDf.filter('postTypeId === 1).
+      select('ownerUserId, 'id , 'creationDate,
+      lag('id, 1 ).over(
+      Window.partitionBy('ownerUserId).orderBy('creationDate)) as "prev",
+      lead('id, 1 ).over(Window.partitionBy('ownerUserId).orderBy('creationDate)) as "next").
+      orderBy('ownerUserId, 'id).show(10)
+
+val countTags = udf((tags:String) =>
+      "&lt;".r.findAllMatchIn(tags).length)
+
+val countTags=spark.udf.register("countTags",
+      (tags:String)=> "&lt;".r.findAllMatchIn(tags).length)
+
+postDf.filter('postTypeId === 1).
+      select('tags , countTags('tags) as "tagCount").show(10, false)
+
+val cleanPosts= postDf.na.drop()
+
+cleanPosts.count()
+
+val cleanPosts= postDf.na.drop("all")
+
+cleanPosts.count()
+
+val cleanPosts= postDf.na.drop(Array("acceptedAnswerId"))
+
+cleanPosts.count()
+
+postDf.na.fill(Map("viewCount" -> 0))  
+
+val postDsCOrrected= postDf.na.replace(Array("id","acceptedAnswerId"),Map(1177 -> 3000))
+
+val postRDD=postDf.rdd
+
+import org.apache.spark.sql.Row
+
+val postMapped=postDf.rdd.map(row => Row.fromSeq(
+      row.toSeq.
+      updated(3, row.getString(3).replace("&lt;","<").replace("&gt;",">")).
+      updated(8, row.getString(8).replace("&lt;","<").replace("&gt;",">"))))	
+
+val postDfNew=spark.createDataFrame(postMapped,postDf.schema)
+
+postDfNew.groupBy('ownerUserId , 'tags,
+      'postTypeId).count.orderBy('ownerUserId desc).show(10)
+	 
+val smplDf=postDfNew.where('ownerUserId >=13 and 'ownerUserId <=15)
+
+smplDf.groupBy('ownerUserId , 'tags, 'score).count.show
+
+smplDf.groupBy('ownerUserId , 'tags, 'postTypeId).count.show
+
+smplDf.rollup('ownerUserId , 'tags, 'postTypeId).count.show
+
+smplDf.cube('ownerUserId , 'tags, 'postTypeId).count.show
+
+	 
+
+val itVotesRaw= sc.textFile("/home/spark/sia/hadoop-in-action/first-edition/ch05/italianVotes.csv").
+      map(_.split("~"))
+	 
+val itVotesRaws=itVotesRaw.map(row => Row(row(0).toLong,row(1).toLong,row(2).toInt,Timestamp.valueOf(row(3))))
+
+import org.apache.spark.sql.types._
+
+val votesSchema = StructType(Seq(
+      StructField("id",LongType,false),
+      StructField("postId",LongType,false),
+      StructField("voteTypeId",IntegerType,false),
+      StructField("creationDate",TimestampType,false)))
+
+val votesDf=spark.createDataFrame(itVotesRaws,votesSchema)	
+
+val postsVotes=postDf.join(votesDf, postDf("id") === 'postId)
+
+postsVotes.show(5,false)
+
+val postsVotes=postDf.join(votesDf, postDf("id") === 'postId, "outer")
+
+
+
+ 
+
+
+
+
+
+
+
