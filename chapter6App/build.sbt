@@ -7,10 +7,10 @@ scalaVersion := "2.11.8"
 organization := "org.sia"
 
 // https://mvnrepository.com/artifact/org.apache.spark/spark-core_2.10
-libraryDependencies += "org.apache.spark" % "spark-core_2.11" % "2.0.0" % "provided"
+libraryDependencies += "org.apache.spark" % "spark-core_2.11" % "2.0.0"
 
 // https://mvnrepository.com/artifact/org.apache.spark/spark-sql_2.10
-libraryDependencies += "org.apache.spark" % "spark-sql_2.11" % "2.0.0" % "provided"
+libraryDependencies += "org.apache.spark" % "spark-sql_2.11" % "2.0.0"
 
 // https://mvnrepository.com/artifact/org.apache.spark/spark-streaming_2.10
 libraryDependencies += "org.apache.spark" % "spark-streaming_2.11" % "2.0.0" % "provided"
@@ -20,6 +20,10 @@ libraryDependencies += "org.apache.kafka" % "kafka_2.11" % "0.8.2.1"
 
 // https://mvnrepository.com/artifact/org.apache.spark/spark-streaming-kafka
 libraryDependencies += "org.apache.spark" % "spark-streaming-kafka-0-8_2.11" % "2.0.0"
+
+// https://mvnrepository.com/artifact/com.databricks/spark-avro
+libraryDependencies += "com.databricks" %% "spark-avro" % "3.2.0"
+
 
 // https://mvnrepository.com/artifact/org.apache.spark/spark-mllib_2.10
 //libraryDependencies += "org.apache.spark" % "spark-mllib_2.11" % "2.0.0"

@@ -13,7 +13,7 @@ import org.sia.VO.Order
 /**
   * Created by nkumar on 11/24/2017.
   */
-object Main {
+object SparkStreamingUsingKafka {
 
   def main(args: Array[String]): Unit = {
     val conf = new SparkConf().setMaster("Local[4]").setAppName("Kafka Streaming using spark")
